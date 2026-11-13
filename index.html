@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>빛과밤의사랑 누적 충전 계산기</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans KR & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+                        mono: ['Inter', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 숫자 입력창 화살표 숨김 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* 고정폭 숫자 */
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body class="bg-[#F6F8FB] text-slate-800 antialiased min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-800 pb-16 lg:pb-0">
+
+    <!-- 상단 헤더 -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-tight">빛과밤의사랑 누적 충전 계산기</h1>
+                    <p class="text-[11px] text-slate-500 hidden sm:block">목표 레벨 및 포인트 달성을 위한 최저가 결제 조합 시뮬레이터</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <button type="button" onclick="scrollToSection('catalogSection')" id="activeItemCountBadge"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200/80 transition-colors cursor-pointer">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    상품 36종 적용중
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 플로팅 레벨 보상 팝업 (마우스 오버 툴팁) -->
+    <div id="rewardFloatingPopup" class="fixed z-50 hidden pointer-events-none max-w-xs sm:max-w-sm bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-3.5 shadow-2xl border border-slate-700/80 transition-opacity duration-150">
+        <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/80">
+            <span id="rewardPopupTitle" class="text-xs font-extrabold text-amber-300 flex items-center gap-1.5">
+                <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-400"></i>
+                LV 1 달성 보상
+            </span>
+            <span id="rewardPopupPoints" class="text-[11px] font-mono font-semibold text-slate-300">100 P</span>
+        </div>
+        <div id="rewardPopupBody" class="space-y-1 text-xs leading-relaxed text-slate-100"></div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+
+        <!-- 토스트 알림 컨테이너 -->
+        <div id="toastContainer" class="fixed bottom-20 lg:bottom-6 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+        <!-- 상단 2단 분할 대시보드 (좌: 입력 설정 / 우: 실시간 결과) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- [좌측 5컬럼] 입력 패널 -->
+            <section class="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-5">
+                
+                <!-- 계산 모드 전환 탭 + 초기화 버튼 -->
+                <div class="flex items-center justify-between gap-2">
+                    <div class="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/70">
+                        <button type="button" id="tabLevelMode" onclick="switchInputMode('level')"
+                            class="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-white text-indigo-600 shadow-xs transition-all">
+                            레벨 기준 계산
+                        </button>
+                        <button type="button" id="tabDirectMode" onclick="switchInputMode('direct')"
+                            class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 transition-all">
+                            필요 포인트만 입력
+                        </button>
+                    </div>
+                    <button type="button" onclick="resetInputs()" title="입력값 초기화"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50/60 hover:border-rose-200 transition-colors shrink-0">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        초기화
+                    </button>
+                </div>
+
+                <!-- [모드 A] 레벨 기준 계산 패널 -->
+                <div id="panelLevelMode" class="space-y-5">
+                    <!-- STEP 1: 현재 보유 포인트 입력 -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 uppercase tracking-wider">
+                                <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px]">1</span>
+                                현재 보유 누적 포인트
+                            </span>
+                            <span id="currentLevelBadge" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                                현재 LV 0
+                            </span>
+                        </div>
+
+                        <!-- 현재 레벨 빠른 선택 드롭다운 -->
+                        <div class="relative">
+                            <select id="currentLevelQuickSelect" onchange="handleCurrentLevelQuickSelect()"
+                                class="w-full pl-3.5 pr-9 py-2.5 text-xs font-bold text-emerald-800 bg-emerald-50/60 border border-emerald-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all appearance-none cursor-pointer tabular-nums">
+                                <!-- JS로 LV 0 ~ LV 28 옵션 동적 생성 -->
+                            </select>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-emerald-600 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+
+                        <div class="relative">
+                            <input type="number" id="currentPointsInput" min="0" max="100000000" placeholder="직접 포인트 입력 (예: 1250)" value="0"
+                                class="w-full pl-4 pr-11 py-3.5 text-xl font-extrabold tabular-nums text-slate-900 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white transition-all">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">P</span>
+                        </div>
+
+                        <!-- 빠른 증감 버튼 -->
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button type="button" onclick="addCurrentPoints(100)" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 rounded-lg border border-slate-200/80 transition-colors">+100</button>
+                            <button type="button" onclick="addCurrentPoints(1000)" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 rounded-lg border border-slate-200/80 transition-colors">+1,000</button>
+                            <button type="button" onclick="addCurrentPoints(5000)" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 rounded-lg border border-slate-200/80 transition-colors">+5,000</button>
+                            <button type="button" onclick="clearCurrentPoints()" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-lg border border-slate-200/80 transition-colors">0으로</button>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- STEP 2: 목표 레벨 설정 (마우스 오버 시 해당 레벨 보상 팝업 표시) -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 uppercase tracking-wider">
+                                <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">2</span>
+                                목표 레벨 설정
+                            </span>
+                            <span id="selectedLevelReqBadge" class="text-xs font-bold tabular-nums text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                                요구: 100 P
+                            </span>
+                        </div>
+
+                        <div id="targetLevelHoverWrap" class="relative"
+                            onmouseenter="handleTargetSelectMouseEnter(event)"
+                            onmousemove="handleLevelRowMouseMove(event)"
+                            onmouseleave="hideRewardPopup()">
+                            <select id="targetLevelSelect" onchange="handleLevelSelectChange()"
+                                class="w-full pl-4 pr-10 py-3.5 text-base font-extrabold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer tabular-nums">
+                                <!-- JS로 LV 1 ~ LV 28 옵션 동적 생성 -->
+                            </select>
+                            <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                        <p class="text-[11px] text-slate-400 flex items-center gap-1">
+                            <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-500"></i>
+                            선택창에 마우스를 올리면 해당 레벨 보상을 확인할 수 있습니다.
+                        </p>
+                        <input type="hidden" id="targetPointsInput" value="100">
+                    </div>
+
+                    <!-- 달성률 및 남은 포인트 진행 박스 -->
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/70 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                추가 충전 필요량
+                                <span id="progressPercentBadge" class="text-[11px] font-extrabold tabular-nums text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">0% 달성</span>
+                            </span>
+                            <span id="neededPointsDisplay" class="text-lg font-extrabold tabular-nums text-indigo-600">100 P</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-slate-200/80 rounded-full overflow-hidden">
+                            <div id="goalProgressBar" class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [모드 B] 필요 포인트만 직접 입력 패널 -->
+                <div id="panelDirectMode" class="hidden space-y-4">
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 uppercase tracking-wider">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                                필요한 충전 포인트 직접 입력
+                            </span>
+                            <span class="text-[11px] font-semibold text-slate-400">보유량 차감 없이 바로 계산</span>
+                        </div>
+
+                        <div class="relative">
+                            <input type="number" id="directNeededInput" min="0" max="100000000" placeholder="예: 500" value="500"
+                                class="w-full pl-4 pr-11 py-4 text-2xl font-extrabold tabular-nums text-slate-900 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:bg-white transition-all">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-base font-bold text-slate-400">P</span>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-1.5 pt-1">
+                            <button type="button" onclick="addDirectPoints(100)" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-lg border border-slate-200/80 transition-colors">+100</button>
+                            <button type="button" onclick="addDirectPoints(500)" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-lg border border-slate-200/80 transition-colors">+500</button>
+                            <button type="button" onclick="addDirectPoints(1000)" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-lg border border-slate-200/80 transition-colors">+1,000</button>
+                            <button type="button" onclick="clearDirectPoints()" class="py-1.5 text-xs font-semibold bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-lg border border-slate-200/80 transition-colors">0으로</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- [우측 7컬럼] 실시간 계산 결과 & 추천 결제 조합 패널 -->
+            <section id="resultSection" class="lg:col-span-7 space-y-5">
+                
+                <!-- 메인 결과 요약 카드 -->
+                <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 sm:p-7 space-y-6">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md">최적 조합 산출 결과</span>
+                                <span id="savingsBadge" class="hidden px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700">
+                                    초과 달성 최저가
+                                </span>
+                            </div>
+                            <div class="flex items-baseline gap-2 mt-2 flex-wrap">
+                                <span id="minCostDisplay" class="text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight text-slate-900">0원</span>
+                                <span id="resultTargetLevelSummary" class="text-xs sm:text-sm font-semibold text-slate-400">목표: LV 1 (100P)</span>
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="copyResultToClipboard()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-indigo-600 transition-colors shadow-sm shrink-0">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            결과 복사
+                        </button>
+                    </div>
+
+                    <!-- 1P당 평균 단가 비례 예상액 안내 배너 -->
+                    <div id="unitEstimateDisplay" class="bg-amber-50/70 border border-amber-200/70 rounded-2xl px-4 py-2.5 text-xs text-amber-900 flex items-center gap-2">
+                        <i data-lucide="calculator" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                        <span>1P당 평균 단가 비례 산출 계산 중...</span>
+                    </div>
+
+                    <!-- 핵심 지표 3분할 미니 그리드 -->
+                    <div class="grid grid-cols-3 gap-3 pt-1">
+                        <div class="bg-slate-50/90 rounded-2xl p-3.5 border border-slate-100">
+                            <div class="text-[11px] font-semibold text-slate-500">총 충전 포인트</div>
+                            <div id="totalObtainedDisplay" class="text-base sm:text-lg font-extrabold tabular-nums text-slate-900 mt-0.5">0 P</div>
+                            <div id="finalTotalDisplay" class="text-[11px] text-slate-400 mt-0.5 truncate">최종: 0 P</div>
+                        </div>
+
+                        <div class="bg-slate-50/90 rounded-2xl p-3.5 border border-slate-100">
+                            <div class="text-[11px] font-semibold text-slate-500">목표 대비 초과분</div>
+                            <div class="mt-1">
+                                <span id="excessPointsDisplay" class="text-sm sm:text-base font-extrabold tabular-nums px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700">+0 P</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-1">남는 포인트</div>
+                        </div>
+
+                        <div class="bg-slate-50/90 rounded-2xl p-3.5 border border-slate-100">
+                            <div class="text-[11px] font-semibold text-slate-500">결제 횟수 / 단가</div>
+                            <div id="purchaseCountDisplay" class="text-base sm:text-lg font-extrabold tabular-nums text-slate-900 mt-0.5">0회 결제</div>
+                            <div id="unitPriceDisplay" class="text-[11px] text-slate-400 mt-0.5 truncate">0원 / 1P</div>
+                        </div>
+                    </div>
+
+                    <!-- 추천 최적 결제 조합 리스트 -->
+                    <div class="pt-2 border-t border-slate-100 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                                <i data-lucide="shopping-bag" class="w-4 h-4 text-indigo-600"></i>
+                                추천 결제 상품 조합
+                            </h2>
+                            <span id="pointsPerThousandDisplay" class="text-[11px] font-semibold text-slate-400 tabular-nums">-</span>
+                        </div>
+
+                        <div id="combinationContainer">
+                            <!-- 자바스크립트로 동적 렌더링 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 하단 참고 표 영역: 레벨별 일람표 & 상품 단가표 -->
+        <div class="space-y-4">
+            <!-- 4. 레벨별 필요 포인트 & 최소 결제 금액 일람표 (LV 1 ~ LV 28) -->
+            <section class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+                <button type="button" onclick="toggleLevelTableAccordion()" class="w-full px-5 sm:px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50/80 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/70 flex items-center justify-center shrink-0">
+                            <i data-lucide="trophy" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm sm:text-base font-extrabold text-slate-900">레벨별 요구 포인트 및 최소 비용 일람표 (LV 1 ~ LV 28)</h2>
+                            <p class="text-xs text-slate-500">레벨 위에 마우스를 올리면 달성 보상을 볼 수 있으며, 행을 클릭하면 목표 레벨로 설정됩니다.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span id="levelAccordionStatusText" class="text-xs font-bold text-slate-500 hidden sm:inline">접기</span>
+                        <i id="levelAccordionChevron" data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-200 rotate-180"></i>
+                    </div>
+                </button>
+
+                <div id="levelAccordionBody" class="border-t border-slate-100">
+                    <div class="px-5 sm:px-6 py-2.5 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-500"></i>
+                            레벨 마우스 오버 시 보상 팝업 표시 · 클릭 시 목표 설정
+                        </span>
+                        <span id="levelTableBasisNote" class="font-semibold text-indigo-600">현재 보유 포인트(0 P) 기준 계산됨</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-[420px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-white sticky top-0 z-10 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                <tr>
+                                    <th class="py-3 px-5 sm:px-6">레벨 (보상 확인)</th>
+                                    <th class="py-3 px-4">요구 누적 포인트</th>
+                                    <th class="py-3 px-4">추가 필요 포인트</th>
+                                    <th class="py-3 px-4">최소 결제 금액</th>
+                                    <th class="py-3 px-5 sm:px-6 text-right">선택</th>
+                                </tr>
+                            </thead>
+                            <tbody id="levelTableBody" class="divide-y divide-slate-100 text-sm">
+                                <!-- 자바스크립트로 LV 1 ~ LV 28 동적 렌더링 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. 전체 상품 단가표 & 커스텀 편집 (아코디언) -->
+            <section id="catalogSection" class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+                <button type="button" id="toggleTableBtn" onclick="toggleCatalogAccordion()" class="w-full px-5 sm:px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50/80 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm sm:text-base font-extrabold text-slate-900">결제 상품 단가표 및 포함 상품 설정</h2>
+                            <p class="text-xs text-slate-500">상품별 1P당 단가 확인 · 체크박스로 계산에 포함할 상품 선택 및 수정 가능</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span id="accordionStatusText" class="text-xs font-bold text-indigo-600 hidden sm:inline">펼쳐보기</span>
+                        <i id="accordionChevron" data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-200"></i>
+                    </div>
+                </button>
+
+                <div id="catalogAccordionBody" class="hidden border-t border-slate-100">
+                    <!-- 단가표 컨트롤 툴바 -->
+                    <div class="p-4 sm:px-6 bg-slate-50/80 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <!-- 새 상품 추가 폼 -->
+                        <form id="addPackageForm" onsubmit="handleAddPackage(event)" class="flex flex-wrap items-center gap-2">
+                            <div class="flex items-center gap-1.5">
+                                <input type="number" id="newPriceInput" min="1" placeholder="가격(원)" required
+                                    class="w-28 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500">
+                                <span class="text-xs font-bold text-slate-400">원 /</span>
+                                <input type="number" id="newPointsInput" min="1" placeholder="포인트(P)" required
+                                    class="w-28 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500">
+                                <span class="text-xs font-bold text-slate-400">P</span>
+                            </div>
+                            <button type="submit" class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> 추가
+                            </button>
+                        </form>
+
+                        <!-- 정렬 및 초기화 버튼 -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="catalogSortSelect" onchange="renderCatalogTable()" class="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                                <option value="price_asc">가격 낮은순</option>
+                                <option value="efficiency_desc">효율 높은순 (1P당 최저가)</option>
+                                <option value="points_desc">포인트 높은순</option>
+                            </select>
+                            <button type="button" onclick="resetCatalogToDefault()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 transition-colors">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 기본표 복원
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 단가표 테이블 -->
+                    <div class="overflow-x-auto max-h-[440px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-white sticky top-0 z-10 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                <tr>
+                                    <th class="py-3 px-4 sm:px-6 w-12 text-center">포함</th>
+                                    <th class="py-3 px-4">결제 금액</th>
+                                    <th class="py-3 px-4">충전 포인트</th>
+                                    <th class="py-3 px-4">1P당 단가</th>
+                                    <th class="py-3 px-4">1,000원당</th>
+                                    <th class="py-3 px-4">효율 등급</th>
+                                    <th class="py-3 px-4 sm:px-6 text-right">재고 (구매 한도)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="catalogTableBody" class="divide-y divide-slate-100 text-sm">
+                                <!-- 자바스크립트로 동적 렌더링 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- 모바일 전용 하단 플로팅 미니 요약 바 -->
+    <div class="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 z-40 flex items-center justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div>
+            <div class="text-[11px] font-semibold text-slate-500">최소 필요 결제 금액</div>
+            <div id="mobileStickyCost" class="text-base font-extrabold tabular-nums text-indigo-600">0원</div>
+        </div>
+        <button type="button" onclick="scrollToSection('resultSection')"
+            class="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5">
+            조합 보기
+            <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+        </button>
+    </div>
+
+    <!-- 푸터 -->
+    <footer class="bg-white border-t border-slate-200/80 mt-10 py-5">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+            <p>빛과밤의사랑 누적 충전 계산기 · 초과 달성 포함 최저가 결제 조합 자동 탐색</p>
+            <p>동일 금액일 경우 초과 포인트와 결제 횟수가 적은 조합을 우선 추천합니다.</p>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * 0. 누적 충전 레벨 기준표 및 레벨별 보상 내역 (LV 1 ~ LV 28)
+         */
+        const LEVEL_TABLE = [
+            { level: 1, points: 100, reward: '창의력 조각×4 / 오로라×20000 / 초심×20' },
+            { level: 2, points: 500, reward: '육시헌·날개 뒤 햇살★★★★' },
+            { level: 3, points: 1000, reward: '연정×20 / 육시헌·날개 뒤 햇살×5 / 오로라×60000 / 마음의 흐름×100' },
+            { level: 4, points: 2000, reward: '하민성·어제의 흔적★★★★' },
+            { level: 5, points: 3000, reward: '은하수 조각×2 / 하민성·어제의 흔적×5 / 오로라×120000 / 마음의 흐름×100' },
+            { level: 6, points: 4000, reward: '차이수·바탕색★★★★' },
+            { level: 7, points: 6000, reward: '은하수 조각×2 / 차이수·바탕색 / 연정×30 / 마음의 흐름×100' },
+            { level: 8, points: 10000, reward: '소휘·동반 추락★★★★' },
+            { level: 9, points: 15000, reward: '은하수 조각×2 / 소휘·동반 추락×5 / 오로라×200000 / 마음의 흐름×100' },
+            { level: 10, points: 25000, reward: '육시헌·은하수의 꿈 ★★★★★' },
+            { level: 11, points: 40000, reward: '연심×2 / 육시헌·은하수의 꿈×2 / 은하수 조각×5 / 하트 캔디×100' },
+            { level: 12, points: 60000, reward: '연심×20 / 육시헌·은하수의 꿈×3 / 은하수 조각×5 / 하트 캔디×100 / 진심 선물·프레임' },
+            { level: 13, points: 80000, reward: '제신율·천 년의 마음★★★★★★' },
+            { level: 14, points: 100000, reward: '연심×20 / 제신율·천 년의 마음×1 / 빛모래×1000 / 하트 캔디×100 / 진심 선물·칭호' },
+            { level: 15, points: 120000, reward: '연심×40 / 제신율·천 년의 마음×2 / 빛모래×1000 / 하트 캔디×100' },
+            { level: 16, points: 150000, reward: '오로라×400000 / 제신율·천 년의 마음×2 / 빛모래×2000 / 하트 캔디×100 / 진심 선물·고전 욕의 택1' },
+            { level: 17, points: 190000, reward: '오로라×500000 / 고전 욕의·선택×2 / 연심×50' },
+            { level: 18, points: 230000, reward: '로그인 음성·만족 / 고전 욕의·선택2 / 연심×50' },
+            { level: 19, points: 280000, reward: '자유 선택 6성[소휘·숨을 죽이고 / 육시헌·교차하는 검 / 제신율·하늘 높이 / 하민성·불타오르다 / 차이수·라인 크로스]' },
+            { level: 20, points: 320000, reward: '연심×100 / 명함·지척의 소리 / 지척 물망초·선택 / 오로라×500000' },
+            { level: 21, points: 370000, reward: '자유 선택 6성[소휘·숨을 죽이고 / 육시헌·교차하는 검 / 제신율·하늘 높이 / 하민성·불타오르다 / 차이수·라인 크로스]' },
+            { level: 22, points: 410000, reward: '연심×100 / 명함·지척의 소리 / 지척 물망초·선택 / 오로라×500000' },
+            { level: 23, points: 460000, reward: '자유 선택 6성[소휘·숨을 죽이고 / 육시헌·교차하는 검 / 제신율·하늘 높이 / 하민성·불타오르다 / 차이수·라인 크로스]' },
+            { level: 24, points: 500000, reward: '연심×100 / 명함·지척의 소리 / 지척 물망초·선택 / 오로라×500000' },
+            { level: 25, points: 550000, reward: '자유 선택 6성[소휘·숨을 죽이고 / 육시헌·교차하는 검 / 제신율·하늘 높이 / 하민성·불타오르다 / 차이수·라인 크로스]' },
+            { level: 26, points: 590000, reward: '연심×100 / 명함·지척의 소리 / 지척 물망초·선택 / 오로라×500000' },
+            { level: 27, points: 640000, reward: '자유 선택 6성[소휘·숨을 죽이고 / 육시헌·교차하는 검 / 제신율·하늘 높이 / 하민성·불타오르다 / 차이수·라인 크로스]' },
+            { level: 28, points: 680000, reward: '연심×100 / 명함·지척의 소리 / 지척 물망초·선택 / 오로라×500000' }
+        ];
+
+        /**
+         * 1. 기본 상품 데이터 (36종) - stock: null이면 무제한, 0 이상 정수면 해당 개수만큼만 구매 가능
+         */
+        const DEFAULT_PACKAGES = [
+            { id: 1, price: 400, points: 10, enabled: true, stock: null },
+            { id: 2, price: 550, points: 20, enabled: true, stock: null },
+            { id: 3, price: 700, points: 30, enabled: true, stock: null },
+            { id: 4, price: 1200, points: 60, enabled: true, stock: null },
+            { id: 5, price: 1800, points: 80, enabled: true, stock: null },
+            { id: 6, price: 2900, points: 120, enabled: true, stock: null },
+            { id: 7, price: 4000, points: 180, enabled: true, stock: null },
+            { id: 8, price: 5500, points: 250, enabled: true, stock: null },
+            { id: 9, price: 6000, points: 300, enabled: true, stock: null },
+            { id: 10, price: 8000, points: 400, enabled: true, stock: null },
+            { id: 11, price: 9000, points: 450, enabled: true, stock: null },
+            { id: 12, price: 10000, points: 500, enabled: true, stock: null },
+            { id: 13, price: 12000, points: 600, enabled: true, stock: null },
+            { id: 14, price: 13000, points: 680, enabled: true, stock: null },
+            { id: 15, price: 14000, points: 730, enabled: true, stock: null },
+            { id: 16, price: 15000, points: 780, enabled: true, stock: null },
+            { id: 17, price: 17000, points: 880, enabled: true, stock: null },
+            { id: 18, price: 18000, points: 930, enabled: true, stock: null },
+            { id: 19, price: 19000, points: 980, enabled: true, stock: null },
+            { id: 20, price: 21000, points: 1080, enabled: true, stock: null },
+            { id: 21, price: 23000, points: 1180, enabled: true, stock: null },
+            { id: 22, price: 25000, points: 1280, enabled: true, stock: null },
+            { id: 23, price: 27000, points: 1380, enabled: true, stock: null },
+            { id: 24, price: 29000, points: 1480, enabled: true, stock: null },
+            { id: 25, price: 33000, points: 1680, enabled: true, stock: null },
+            { id: 26, price: 37000, points: 1880, enabled: true, stock: null },
+            { id: 27, price: 39000, points: 1980, enabled: true, stock: null },
+            { id: 28, price: 41000, points: 2080, enabled: true, stock: null },
+            { id: 29, price: 43000, points: 2180, enabled: true, stock: null },
+            { id: 30, price: 49000, points: 2480, enabled: true, stock: null },
+            { id: 31, price: 53000, points: 2680, enabled: true, stock: null },
+            { id: 32, price: 57000, points: 2880, enabled: true, stock: null },
+            { id: 33, price: 59000, points: 2980, enabled: true, stock: null },
+            { id: 34, price: 65000, points: 3280, enabled: true, stock: null },
+            { id: 35, price: 69000, points: 3480, enabled: true, stock: null },
+            { id: 36, price: 129000, points: 6480, enabled: true, stock: null }
+        ];
+
+        // 애플리케이션 전역 상태
+        let packages = JSON.parse(JSON.stringify(DEFAULT_PACKAGES));
+        let nextId = 37;
+        let lastCalculatedResult = null;
+        let inputMode = 'level'; // 'level' | 'direct'
+
+        /**
+         * 누적 포인트에 해당하는 현재 달성 레벨 계산 (0 ~ 28)
+         */
+        function getAchievedLevel(points) {
+            let achieved = 0;
+            for (const item of LEVEL_TABLE) {
+                if (points >= item.points) {
+                    achieved = item.level;
+                } else {
+                    break;
+                }
+            }
+            return achieved;
+        }
+
+        /**
+         * 현재 보유 포인트에 따른 다음 목표 레벨 계산 (1 ~ 28)
+         */
+        function getNextTargetLevel(points) {
+            const currentLv = getAchievedLevel(points);
+            return Math.min(28, currentLv + 1);
+        }
+
+        /**
+         * 입력 모드 전환 ('level': 레벨 기준 계산 / 'direct': 필요 포인트만 입력)
+         */
+        function switchInputMode(mode) {
+            inputMode = mode;
+            const tabLevel = document.getElementById('tabLevelMode');
+            const tabDirect = document.getElementById('tabDirectMode');
+            const panelLevel = document.getElementById('panelLevelMode');
+            const panelDirect = document.getElementById('panelDirectMode');
+
+            if (mode === 'level') {
+                tabLevel.className = 'px-3 py-1.5 rounded-lg text-xs font-extrabold bg-white text-indigo-600 shadow-xs transition-all';
+                tabDirect.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 transition-all';
+                panelLevel.classList.remove('hidden');
+                panelDirect.classList.add('hidden');
+            } else {
+                tabDirect.className = 'px-3 py-1.5 rounded-lg text-xs font-extrabold bg-white text-indigo-600 shadow-xs transition-all';
+                tabLevel.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 transition-all';
+                panelDirect.classList.remove('hidden');
+                panelLevel.classList.add('hidden');
+            }
+            hideRewardPopup();
+            runCalculation();
+        }
+
+        /**
+         * 플로팅 레벨 보상 팝업 표시 및 위치 계산
+         */
+        function formatRewardHtml(rewardText) {
+            const parts = rewardText.split('/').map(s => s.trim()).filter(Boolean);
+            let html = '';
+            let inChoiceGroup = false;
+
+            for (const part of parts) {
+                if (part.startsWith('자유 선택 6성[')) {
+                    inChoiceGroup = true;
+                    const firstChoice = part.replace('자유 선택 6성[', '').replace(']', '').trim();
+                    html += `<div class="font-bold text-amber-300 pt-1">자유 선택 6성</div>`;
+                    if (firstChoice) {
+                        html += `<div class="pl-2 text-slate-200">-${firstChoice}</div>`;
+                    }
+                    if (part.endsWith(']')) {
+                        inChoiceGroup = false;
+                    }
+                } else if (inChoiceGroup) {
+                    const cleanItem = part.replace(']', '').trim();
+                    if (cleanItem) {
+                        html += `<div class="pl-2 text-slate-200">-${cleanItem}</div>`;
+                    }
+                    if (part.endsWith(']')) {
+                        inChoiceGroup = false;
+                    }
+                } else {
+                    html += `
+                        <div class="flex items-start gap-1.5">
+                            <span class="text-amber-400 mt-0.5">•</span>
+                            <span>${part}</span>
+                        </div>
+                    `;
+                }
+            }
+            return html;
+        }
+
+        function positionRewardPopup(clientX, clientY) {
+            const popup = document.getElementById('rewardFloatingPopup');
+            if (!popup || popup.classList.contains('hidden')) return;
+
+            const pad = 14;
+            const rect = popup.getBoundingClientRect();
+            let left = clientX + pad;
+            let top = clientY + pad;
+
+            if (left + rect.width > window.innerWidth - 12) {
+                left = Math.max(12, clientX - rect.width - pad);
+            }
+            if (top + rect.height > window.innerHeight - 12) {
+                top = Math.max(12, clientY - rect.height - pad);
+            }
+
+            popup.style.left = `${left}px`;
+            popup.style.top = `${top}px`;
+        }
+
+        function showRewardPopup(level, clientX, clientY) {
+            const popup = document.getElementById('rewardFloatingPopup');
+            const titleEl = document.getElementById('rewardPopupTitle');
+            const pointsEl = document.getElementById('rewardPopupPoints');
+            const bodyEl = document.getElementById('rewardPopupBody');
+            if (!popup || !titleEl || !pointsEl || !bodyEl) return;
+
+            const levelObj = LEVEL_TABLE.find(l => l.level === Number(level));
+            if (!levelObj) return;
+
+            titleEl.innerHTML = `<i data-lucide="gift" class="w-3.5 h-3.5 text-amber-400"></i> LV ${levelObj.level} 달성 보상`;
+            pointsEl.textContent = `${levelObj.points.toLocaleString()} P`;
+            bodyEl.innerHTML = formatRewardHtml(levelObj.reward);
+
+            popup.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+            positionRewardPopup(clientX, clientY);
+        }
+
+        function hideRewardPopup() {
+            const popup = document.getElementById('rewardFloatingPopup');
+            if (popup) {
+                popup.classList.add('hidden');
+            }
+        }
+
+        function handleTargetSelectMouseEnter(e) {
+            const select = document.getElementById('targetLevelSelect');
+            if (!select) return;
+            showRewardPopup(Number(select.value), e.clientX, e.clientY);
+        }
+
+        function handleLevelRowMouseEnter(e, level) {
+            showRewardPopup(level, e.clientX, e.clientY);
+        }
+
+        function handleLevelRowMouseMove(e) {
+            positionRewardPopup(e.clientX, e.clientY);
+        }
+
+        /**
+         * 현재 보유 레벨 및 목표 레벨 드롭다운 옵션 초기화
+         */
+        function initLevelDropdown() {
+            const currentSelect = document.getElementById('currentLevelQuickSelect');
+            if (currentSelect) {
+                currentSelect.innerHTML = [
+                    `<option value="0" selected>현재 레벨 선택: LV 0 (0 P)</option>`,
+                    ...LEVEL_TABLE.map(item => `
+                        <option value="${item.level}">
+                            현재 레벨 선택: LV ${item.level} (${item.points.toLocaleString()} P)
+                        </option>
+                    `)
+                ].join('');
+            }
+
+            const select = document.getElementById('targetLevelSelect');
+            if (!select) return;
+            select.innerHTML = LEVEL_TABLE.map(item => `
+                <option value="${item.level}" ${item.level === 1 ? 'selected' : ''}>
+                    LV ${item.level} — 누적 ${item.points.toLocaleString()} P
+                </option>
+            `).join('');
+        }
+
+        /**
+         * 현재 레벨 드롭다운 선택 시 보유 포인트 칸에 해당 레벨 포인트 자동 입력
+         */
+        function handleCurrentLevelQuickSelect() {
+            const currentSelect = document.getElementById('currentLevelQuickSelect');
+            const currentInput = document.getElementById('currentPointsInput');
+            if (!currentSelect || !currentInput) return;
+
+            const lv = Number(currentSelect.value);
+            if (lv === 0) {
+                currentInput.value = 0;
+            } else {
+                const levelObj = LEVEL_TABLE.find(l => l.level === lv);
+                if (levelObj) {
+                    currentInput.value = levelObj.points;
+                }
+            }
+            handleCurrentPointsChange(true);
+        }
+
+        /**
+         * 현재 보유 누적 포인트 변경 시 다음 레벨을 목표로 자동 설정
+         */
+        function handleCurrentPointsChange(fromDropdown = false) {
+            const currentInput = document.getElementById('currentPointsInput');
+            const current = Math.max(0, Math.floor(Number(currentInput.value) || 0));
+
+            if (!fromDropdown) {
+                const currentSelect = document.getElementById('currentLevelQuickSelect');
+                if (currentSelect) {
+                    const exactLvObj = LEVEL_TABLE.find(l => l.points === current);
+                    if (current === 0) {
+                        currentSelect.value = '0';
+                    } else if (exactLvObj) {
+                        currentSelect.value = String(exactLvObj.level);
+                    } else {
+                        currentSelect.value = String(getAchievedLevel(current));
+                    }
+                }
+            }
+
+            const nextLv = getNextTargetLevel(current);
+            const select = document.getElementById('targetLevelSelect');
+            if (select) {
+                select.value = String(nextLv);
+            }
+            handleLevelSelectChange();
+        }
+
+        /**
+         * 레벨 드롭다운 변경 시 목표 포인트 동기화 및 계산 실행
+         */
+        function handleLevelSelectChange() {
+            const select = document.getElementById('targetLevelSelect');
+            if (!select) return;
+            const level = Number(select.value);
+            const levelObj = LEVEL_TABLE.find(l => l.level === level) || LEVEL_TABLE[0];
+            document.getElementById('targetPointsInput').value = levelObj.points;
+            document.getElementById('selectedLevelReqBadge').textContent = `요구: ${levelObj.points.toLocaleString()} P`;
+
+            const popup = document.getElementById('rewardFloatingPopup');
+            if (popup && !popup.classList.contains('hidden')) {
+                const wrap = document.getElementById('targetLevelHoverWrap');
+                if (wrap) {
+                    const rect = wrap.getBoundingClientRect();
+                    showRewardPopup(level, rect.left + 12, rect.bottom + 4);
+                }
+            }
+
+            runCalculation();
+        }
+
+        /**
+         * 레벨 표 행 클릭 시 호출
+         */
+        function selectQuickLevel(level, scrollToTop = false) {
+            if (inputMode !== 'level') {
+                switchInputMode('level');
+            }
+            const select = document.getElementById('targetLevelSelect');
+            if (select) {
+                select.value = String(level);
+                handleLevelSelectChange();
+            }
+
+            if (scrollToTop) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                showToast(`목표가 LV ${level}로 설정되었습니다.`);
+            }
+        }
+
+        /**
+         * 2. 핵심 최적화 알고리즘 (재고 제한 상품 Bounded Knapsack + 무제한 상품 하이브리드 Unbounded DP)
+         */
+        function calculateOptimalCombination(neededPoints, pkgList) {
+            if (neededPoints <= 0) {
+                return {
+                    totalCost: 0,
+                    totalPoints: 0,
+                    excessPoints: 0,
+                    totalCount: 0,
+                    items: []
+                };
+            }
+
+            // 활성화되어 있고 재고가 0이 아닌 상품만 필터링
+            const validPkgs = pkgList.filter(p => {
+                if (p.enabled === false || p.price <= 0 || p.points <= 0) return false;
+                if (p.stock !== null && p.stock !== undefined && Number(p.stock) <= 0) return false;
+                return true;
+            });
+
+            if (validPkgs.length === 0) {
+                return null;
+            }
+
+            const boundedPkgs = validPkgs.filter(p => p.stock !== null && p.stock !== undefined && Number(p.stock) > 0);
+            const rawUnboundedPkgs = validPkgs.filter(p => p.stock === null || p.stock === undefined);
+
+            // 무제한 상품은 동일 포인트 중 최저가만 유지
+            const uniqueUnbounded = new Map();
+            for (const p of rawUnboundedPkgs) {
+                if (!uniqueUnbounded.has(p.points) || uniqueUnbounded.get(p.points).price > p.price) {
+                    uniqueUnbounded.set(p.points, p);
+                }
+            }
+            const unboundedPkgs = Array.from(uniqueUnbounded.values());
+
+            // 재고 제한 상품들의 총 제공 가능 포인트 합계 계산
+            let totalBoundedPoints = 0;
+            for (const p of boundedPkgs) {
+                totalBoundedPoints += p.points * Math.floor(Number(p.stock));
+            }
+
+            // 무제한 상품이 없는 경우 전체 재고 합계로 목표 달성 가능 여부 확인
+            if (unboundedPkgs.length === 0 && totalBoundedPoints < neededPoints) {
+                return null;
+            }
+
+            let bestEffPkg = null;
+            if (unboundedPkgs.length > 0) {
+                bestEffPkg = unboundedPkgs[0];
+                for (const p of unboundedPkgs) {
+                    if (p.price / p.points < bestEffPkg.price / bestEffPkg.points) {
+                        bestEffPkg = p;
+                    }
+                }
+            }
+
+            const maxPkgPoints = Math.max(...validPkgs.map(p => p.points));
+            const DP_SAFE_MARGIN = maxPkgPoints * 12;
+
+            let bulkCount = 0;
+            let remainingNeeded = neededPoints;
+
+            // 무제한 상품이 존재하고 목표가 매우 클 경우: 재고 제한 상품 구간 + 안전 마진을 제외한 대단위 구간을 최고 효율 무제한 상품으로 분할
+            const dynamicMargin = totalBoundedPoints + DP_SAFE_MARGIN;
+            if (bestEffPkg && neededPoints > dynamicMargin) {
+                const bulkPoints = neededPoints - dynamicMargin;
+                bulkCount = Math.floor(bulkPoints / bestEffPkg.points);
+                remainingNeeded = neededPoints - (bulkCount * bestEffPkg.points);
+            }
+
+            const limit = remainingNeeded + maxPkgPoints;
+            const INF = Number.MAX_SAFE_INTEGER;
+            let dpCost = new Array(limit + 1).fill(INF);
+            let dpCount = new Array(limit + 1).fill(INF);
+            let dpCombo = new Array(limit + 1).fill(null);
+
+            dpCost[0] = 0;
+            dpCount[0] = 0;
+            dpCombo[0] = new Map();
+
+            // 1단계: 재고 제한(Bounded) 상품 처리 (이진 분할 최적화)
+            for (const pkg of boundedPkgs) {
+                let remStock = Math.floor(Number(pkg.stock));
+                let k = 1;
+                while (remStock > 0) {
+                    const take = Math.min(k, remStock);
+                    const batchPoints = pkg.points * take;
+                    const batchCost = pkg.price * take;
+
+                    for (let p = limit; p >= batchPoints; p--) {
+                        const prev = p - batchPoints;
+                        if (dpCost[prev] === INF) continue;
+
+                        const nextCost = dpCost[prev] + batchCost;
+                        const nextCount = dpCount[prev] + take;
+
+                        if (
+                            nextCost < dpCost[p] ||
+                            (nextCost === dpCost[p] && nextCount < dpCount[p])
+                        ) {
+                            dpCost[p] = nextCost;
+                            dpCount[p] = nextCount;
+                            const nextMap = new Map(dpCombo[prev]);
+                            nextMap.set(pkg.id, (nextMap.get(pkg.id) || 0) + take);
+                            dpCombo[p] = nextMap;
+                        }
+                    }
+
+                    remStock -= take;
+                    k *= 2;
+                }
+            }
+
+            // 2단계: 무제한(Unbounded) 상품 처리
+            for (const pkg of unboundedPkgs) {
+                for (let p = pkg.points; p <= limit; p++) {
+                    const prev = p - pkg.points;
+                    if (dpCost[prev] === INF) continue;
+
+                    const nextCost = dpCost[prev] + pkg.price;
+                    const nextCount = dpCount[prev] + 1;
+
+                    if (
+                        nextCost < dpCost[p] ||
+                        (nextCost === dpCost[p] && nextCount < dpCount[p])
+                    ) {
+                        dpCost[p] = nextCost;
+                        dpCount[p] = nextCount;
+                        const nextMap = new Map(dpCombo[prev]);
+                        nextMap.set(pkg.id, (nextMap.get(pkg.id) || 0) + 1);
+                        dpCombo[p] = nextMap;
+                    }
+                }
+            }
+
+            let bestTotalPoints = -1;
+            let bestCost = INF;
+            let bestCount = INF;
+
+            for (let p = remainingNeeded; p <= limit; p++) {
+                if (dpCost[p] === INF) continue;
+
+                if (
+                    dpCost[p] < bestCost ||
+                    (dpCost[p] === bestCost && p < bestTotalPoints) ||
+                    (dpCost[p] === bestCost && p === bestTotalPoints && dpCount[p] < bestCount)
+                ) {
+                    bestCost = dpCost[p];
+                    bestTotalPoints = p;
+                    bestCount = dpCount[p];
+                }
+            }
+
+            if (bestTotalPoints === -1) {
+                return null;
+            }
+
+            const pkgById = new Map(validPkgs.map(p => [p.id, p]));
+            const finalCountMap = new Map(dpCombo[bestTotalPoints]);
+
+            if (bulkCount > 0 && bestEffPkg) {
+                finalCountMap.set(bestEffPkg.id, (finalCountMap.get(bestEffPkg.id) || 0) + bulkCount);
+            }
+
+            const items = [];
+            for (const [id, count] of finalCountMap.entries()) {
+                const pkg = pkgById.get(id);
+                if (pkg && count > 0) {
+                    items.push({ pkg, count });
+                }
+            }
+            items.sort((a, b) => b.pkg.price - a.pkg.price);
+
+            const finalTotalCost = (bulkCount * (bestEffPkg ? bestEffPkg.price : 0)) + bestCost;
+            const finalTotalPoints = (bulkCount * (bestEffPkg ? bestEffPkg.points : 0)) + bestTotalPoints;
+            const finalTotalCount = bulkCount + bestCount;
+
+            return {
+                totalCost: finalTotalCost,
+                totalPoints: finalTotalPoints,
+                excessPoints: finalTotalPoints - neededPoints,
+                totalCount: finalTotalCount,
+                items
+            };
+        }
+
+        /**
+         * 3. UI 업데이트 및 계산 실행 함수
+         */
+        function runCalculation() {
+            const targetInput = document.getElementById('targetPointsInput');
+            const currentInput = document.getElementById('currentPointsInput');
+            const directInput = document.getElementById('directNeededInput');
+
+            let target = Math.max(0, Math.floor(Number(targetInput.value) || 0));
+            let current = Math.max(0, Math.floor(Number(currentInput.value) || 0));
+            let needed = 0;
+
+            const currentLv = getAchievedLevel(current);
+            const currentLvBadge = document.getElementById('currentLevelBadge');
+            if (currentLvBadge) {
+                currentLvBadge.textContent = currentLv >= 28 ? `현재 LV 28 (MAX)` : `현재 LV ${currentLv}`;
+            }
+
+            if (inputMode === 'level') {
+                const selectedLv = Number(document.getElementById('targetLevelSelect').value);
+                document.getElementById('resultTargetLevelSummary').textContent = `목표: LV ${selectedLv} (${target.toLocaleString()}P)`;
+
+                needed = Math.max(0, target - current);
+                document.getElementById('neededPointsDisplay').textContent = `${needed.toLocaleString()} P`;
+
+                const pct = target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 100;
+                document.getElementById('progressPercentBadge').textContent = `${pct}% 달성`;
+                document.getElementById('goalProgressBar').style.width = `${pct}%`;
+            } else {
+                needed = Math.max(0, Math.floor(Number(directInput ? directInput.value : 0) || 0));
+                document.getElementById('resultTargetLevelSummary').textContent = `직접 입력: ${needed.toLocaleString()} P 필요`;
+            }
+
+            renderLevelReferenceTable(current);
+
+            const activePkgs = packages.filter(p => p.enabled !== false && p.price > 0 && p.points > 0);
+            const avgCatalogUnitPrice = activePkgs.length > 0
+                ? activePkgs.reduce((acc, p) => acc + (p.price / p.points), 0) / activePkgs.length
+                : 0;
+            const estimatedByUnitCost = Math.round(needed * avgCatalogUnitPrice);
+            const unitEstEl = document.getElementById('unitEstimateDisplay');
+            if (unitEstEl) {
+                unitEstEl.innerHTML = `
+                    <i data-lucide="calculator" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                    <span>1P당 평균 단가(${avgCatalogUnitPrice.toFixed(2)}원/P) 비례 산출: 약 <strong>${estimatedByUnitCost.toLocaleString()}원</strong></span>
+                `;
+            }
+
+            if (needed === 0) {
+                lastCalculatedResult = { totalCost: 0, totalPoints: 0, excessPoints: 0, totalCount: 0, items: [] };
+                document.getElementById('minCostDisplay').textContent = '0원';
+                const mobileCostEl = document.getElementById('mobileStickyCost');
+                if (mobileCostEl) mobileCostEl.textContent = '0원';
+                document.getElementById('totalObtainedDisplay').textContent = '0 P';
+                document.getElementById('finalTotalDisplay').textContent = inputMode === 'level'
+                    ? `최종: ${current.toLocaleString()} P (LV ${currentLv})`
+                    : '추가 충전 없음';
+                document.getElementById('excessPointsDisplay').textContent = inputMode === 'level'
+                    ? `+${Math.max(0, current - target).toLocaleString()} P`
+                    : '+0 P';
+                document.getElementById('purchaseCountDisplay').textContent = '0회 결제';
+                document.getElementById('unitPriceDisplay').textContent = '0원 / 1P';
+                document.getElementById('pointsPerThousandDisplay').textContent = '-';
+                document.getElementById('savingsBadge').classList.add('hidden');
+
+                renderCombinationList([], true, false);
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            const result = calculateOptimalCombination(needed, packages);
+            lastCalculatedResult = result;
+
+            if (!result) {
+                document.getElementById('minCostDisplay').textContent = '계산 불가';
+                const mobileCostEl = document.getElementById('mobileStickyCost');
+                if (mobileCostEl) mobileCostEl.textContent = '계산 불가';
+                renderCombinationList([], false, true);
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            document.getElementById('minCostDisplay').textContent = `${result.totalCost.toLocaleString()}원`;
+            const mobileCostEl = document.getElementById('mobileStickyCost');
+            if (mobileCostEl) mobileCostEl.textContent = `${result.totalCost.toLocaleString()}원`;
+            document.getElementById('totalObtainedDisplay').textContent = `${result.totalPoints.toLocaleString()} P`;
+
+            if (inputMode === 'level') {
+                const finalPoints = current + result.totalPoints;
+                const finalLv = getAchievedLevel(finalPoints);
+                document.getElementById('finalTotalDisplay').textContent = `최종: ${finalPoints.toLocaleString()} P (LV ${finalLv})`;
+            } else {
+                document.getElementById('finalTotalDisplay').textContent = `충전 후: +${result.totalPoints.toLocaleString()} P`;
+            }
+
+            const excessEl = document.getElementById('excessPointsDisplay');
+            excessEl.textContent = `+${result.excessPoints.toLocaleString()} P`;
+            if (result.excessPoints > 0) {
+                excessEl.className = 'text-sm sm:text-base font-extrabold tabular-nums px-2 py-0.5 rounded-md bg-amber-50 text-amber-700';
+            } else {
+                excessEl.className = 'text-sm sm:text-base font-extrabold tabular-nums px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700';
+            }
+
+            document.getElementById('purchaseCountDisplay').textContent = `${result.totalCount.toLocaleString()}회 결제`;
+
+            const avgPricePerPoint = result.totalPoints > 0 ? (result.totalCost / result.totalPoints).toFixed(2) : '0';
+            const pointsPerThousand = result.totalCost > 0 ? ((result.totalPoints / result.totalCost) * 1000).toFixed(2) : '0';
+
+            document.getElementById('unitPriceDisplay').textContent = `${avgPricePerPoint}원 / 1P`;
+            document.getElementById('pointsPerThousandDisplay').textContent = `1,000원당 ${pointsPerThousand} P`;
+
+            const badge = document.getElementById('savingsBadge');
+            badge.classList.remove('hidden');
+            badge.textContent = result.excessPoints > 0 ? '초과 달성 최저가' : '딱 떨어지는 조합';
+
+            renderCombinationList(result.items, false, false);
+            if (window.lucide) lucide.createIcons();
+        }
+
+        /**
+         * LV 1 ~ LV 28 레벨별 요구 포인트 및 최소 결제 금액 일람표 렌더링
+         */
+        function renderLevelReferenceTable(currentPoints) {
+            const tbody = document.getElementById('levelTableBody');
+            const basisNote = document.getElementById('levelTableBasisNote');
+            if (!tbody) return;
+
+            if (basisNote) {
+                basisNote.textContent = `현재 보유 포인트(${currentPoints.toLocaleString()} P) 기준 추가 필요 금액 표시중`;
+            }
+
+            const selectedTargetLv = Number(document.getElementById('targetLevelSelect')?.value || 1);
+
+            tbody.innerHTML = LEVEL_TABLE.map(row => {
+                const needed = Math.max(0, row.points - currentPoints);
+                const isAchieved = needed === 0;
+                const isSelectedTarget = inputMode === 'level' && selectedTargetLv === row.level;
+
+                let costText = '0원';
+                if (!isAchieved) {
+                    const res = calculateOptimalCombination(needed, packages);
+                    costText = res ? `${res.totalCost.toLocaleString()}원` : '계산 불가';
+                }
+
+                const rowBgClass = isSelectedTarget
+                    ? 'bg-indigo-50/90 hover:bg-indigo-100/70'
+                    : (isAchieved ? 'bg-slate-50/60 hover:bg-slate-100/70' : 'hover:bg-slate-50');
+
+                const statusBadge = isAchieved
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">달성 완료</span>`
+                    : (isSelectedTarget
+                        ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-600 text-white">현재 선택됨</span>`
+                        : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">목표 설정</span>`);
+
+                return `
+                    <tr onclick="selectQuickLevel(${row.level}, true)"
+                        onmouseenter="handleLevelRowMouseEnter(event, ${row.level})"
+                        onmousemove="handleLevelRowMouseMove(event)"
+                        onmouseleave="hideRewardPopup()"
+                        class="group cursor-pointer transition-colors ${rowBgClass}">
+                        <td class="py-3 px-5 sm:px-6 font-extrabold text-slate-900">
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full ${row.level >= 20 ? 'bg-amber-500' : (row.level >= 10 ? 'bg-indigo-500' : 'bg-slate-400')}"></span>
+                                LV ${row.level}
+                                <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-500 opacity-75 group-hover:opacity-100"></i>
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 font-mono font-semibold text-slate-700">${row.points.toLocaleString()} P</td>
+                        <td class="py-3 px-4 font-mono ${isAchieved ? 'text-slate-400' : 'font-bold text-indigo-600'}">
+                            ${isAchieved ? '0 P' : `+${needed.toLocaleString()} P`}
+                        </td>
+                        <td class="py-3 px-4 font-mono font-extrabold ${isAchieved ? 'text-slate-400' : 'text-slate-900'}">
+                            ${costText}
+                        </td>
+                        <td class="py-3 px-5 sm:px-6 text-right">
+                            ${statusBadge}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 추천 결제 상품 조합 리스트 렌더링
+         */
+        function renderCombinationList(items, isAlreadyAchieved = false, isError = false) {
+            const container = document.getElementById('combinationContainer');
+            if (!container) return;
+
+            if (isError) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-500 bg-rose-50/50 rounded-2xl border border-rose-100">
+                        <i data-lucide="alert-circle" class="w-10 h-10 mx-auto text-rose-400 mb-2"></i>
+                        <p class="font-semibold text-slate-700">유효한 상품이 없거나 재고가 부족합니다.</p>
+                        <p class="text-xs mt-1">하단 상품 단가표에서 포함 여부나 재고 한도를 확인해주세요.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (isAlreadyAchieved) {
+                const achievedMsg = inputMode === 'level'
+                    ? `이미 목표 레벨(LV ${document.getElementById('targetLevelSelect').value})을 달성했습니다!`
+                    : '추가로 충전할 포인트가 0 P입니다.';
+                container.innerHTML = `
+                    <div class="text-center py-8 bg-emerald-50/50 rounded-2xl border border-emerald-100">
+                        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-base font-bold text-slate-800">${achievedMsg}</p>
+                        <p class="text-xs text-slate-500 mt-1">추가 유료 결제가 필요하지 않습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${items.map(({ pkg, count }) => {
+                        const subCost = pkg.price * count;
+                        const subPoints = pkg.points * count;
+                        const unitPrice = (pkg.price / pkg.points).toFixed(2);
+                        const stockBadge = (pkg.stock !== null && pkg.stock !== undefined)
+                            ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">한도 ${pkg.stock}개</span>`
+                            : '';
+
+                        return `
+                            <div class="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 hover:bg-indigo-50/40 hover:border-indigo-200 transition-all">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-11 h-11 rounded-xl bg-white border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center shrink-0">
+                                        <span class="text-[9px] font-bold text-slate-400 leading-none">수량</span>
+                                        <span class="text-sm font-extrabold tabular-nums text-indigo-600 mt-0.5">×${count}</span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="text-sm sm:text-base font-extrabold text-slate-900 tabular-nums">${pkg.price.toLocaleString()}원</span>
+                                            <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-100/80 text-indigo-700 tabular-nums">${pkg.points.toLocaleString()} P</span>
+                                            ${stockBadge}
+                                        </div>
+                                        <div class="text-xs text-slate-500 mt-1 truncate">
+                                            소계 <strong class="text-slate-700 tabular-nums">${subCost.toLocaleString()}원</strong> · <span class="text-emerald-600 font-semibold tabular-nums">+${subPoints.toLocaleString()}P</span>
+                                            <span class="text-slate-400 text-[11px]">(${unitPrice}원/P)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        /**
+         * 4. 전체 상품 단가표 렌더링 및 재고 관리
+         */
+        function renderCatalogTable() {
+            const tbody = document.getElementById('catalogTableBody');
+            if (!tbody) return;
+            const sortType = document.getElementById('catalogSortSelect').value;
+
+            const activeCount = packages.filter(p => p.enabled !== false && (p.stock === null || p.stock === undefined || p.stock > 0)).length;
+            const countBadge = document.getElementById('activeItemCountBadge');
+            if (countBadge) {
+                countBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    상품 ${activeCount}/${packages.length}종 적용중
+                `;
+            }
+
+            const sorted = [...packages].sort((a, b) => {
+                if (sortType === 'efficiency_desc') {
+                    return (a.price / a.points) - (b.price / b.points);
+                } else if (sortType === 'points_desc') {
+                    return b.points - a.points;
+                }
+                return a.price - b.price;
+            });
+
+            const activePkgs = packages.filter(p => p.enabled !== false);
+            const unitPrices = (activePkgs.length > 0 ? activePkgs : packages).map(p => p.price / p.points);
+            const minUnitPrice = Math.min(...unitPrices);
+
+            tbody.innerHTML = sorted.map(pkg => {
+                const unitPrice = pkg.price / pkg.points;
+                const ptsPer1000 = (pkg.points / pkg.price) * 1000;
+                const isEnabled = pkg.enabled !== false;
+                const hasStockLimit = pkg.stock !== null && pkg.stock !== undefined;
+                const isOutOfStock = hasStockLimit && Number(pkg.stock) <= 0;
+                const isUsable = isEnabled && !isOutOfStock;
+
+                let effBadge = '';
+                if (!isEnabled) {
+                    effBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-200 text-slate-500">제외됨</span>`;
+                } else if (isOutOfStock) {
+                    effBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-600">품절 (0개)</span>`;
+                } else if (Math.abs(unitPrice - minUnitPrice) < 0.01) {
+                    effBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-700">최고 효율</span>`;
+                } else if (unitPrice <= 20.0) {
+                    effBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">우수 (20원 이하)</span>`;
+                } else if (unitPrice <= 25.0) {
+                    effBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">보통</span>`;
+                } else {
+                    effBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">소액 패키지</span>`;
+                }
+
+                const stockVal = hasStockLimit ? pkg.stock : '';
+
+                return `
+                    <tr class="${isUsable ? 'hover:bg-slate-50/90' : 'bg-slate-100/70 opacity-65'} transition-colors">
+                        <td class="py-3 px-4 sm:px-6 text-center">
+                            <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="togglePackageEnabled(${pkg.id})"
+                                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" title="계산 포함 여부 선택">
+                        </td>
+                        <td class="py-3 px-4 font-bold font-mono ${isUsable ? 'text-slate-900' : 'line-through text-slate-400'}">${pkg.price.toLocaleString()}원</td>
+                        <td class="py-3 px-4 font-bold font-mono ${isUsable ? 'text-indigo-600' : 'text-slate-400'}">${pkg.points.toLocaleString()} P</td>
+                        <td class="py-3 px-4 font-mono font-semibold text-slate-700">${unitPrice.toFixed(2)}원 <span class="text-xs text-slate-400 font-normal">/ 1P</span></td>
+                        <td class="py-3 px-4 font-mono text-slate-600">${ptsPer1000.toFixed(2)} P</td>
+                        <td class="py-3 px-4">${effBadge}</td>
+                        <td class="py-3 px-4 sm:px-6 text-right">
+                            <div class="inline-flex items-center justify-end gap-1.5">
+                                <input type="number" min="0" placeholder="무제한" value="${stockVal}"
+                                    onchange="updatePackageStock(${pkg.id}, this.value)"
+                                    class="w-20 px-2.5 py-1 text-xs font-mono font-bold text-right bg-white border ${hasStockLimit ? 'border-amber-400 text-amber-700 bg-amber-50/40' : 'border-slate-200 text-slate-700'} rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                                    title="비워두면 무제한, 숫자 입력 시 최대 구매 횟수 제한">
+                                <span class="text-xs text-slate-400 w-4 text-left">${hasStockLimit ? '개' : ''}</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function togglePackageEnabled(id) {
+            const target = packages.find(p => p.id === id);
+            if (!target) return;
+            target.enabled = target.enabled === false ? true : false;
+            renderCatalogTable();
+            runCalculation();
+            showToast(`${target.price.toLocaleString()}원 상품이 계산에서 ${target.enabled ? '포함' : '제외'}되었습니다.`);
+        }
+
+        function updatePackageStock(id, rawValue) {
+            const target = packages.find(p => p.id === id);
+            if (!target) return;
+
+            const trimmed = String(rawValue).trim();
+            if (trimmed === '') {
+                target.stock = null;
+            } else {
+                const parsed = Math.max(0, Math.floor(Number(trimmed) || 0));
+                target.stock = parsed;
+            }
+
+            renderCatalogTable();
+            runCalculation();
+            const stockLabel = target.stock === null ? '무제한' : `${target.stock}개 제한`;
+            showToast(`${target.price.toLocaleString()}원 상품 재고가 '${stockLabel}'으로 설정되었습니다.`);
+        }
+
+        function handleAddPackage(e) {
+            e.preventDefault();
+            const priceInput = document.getElementById('newPriceInput');
+            const pointsInput = document.getElementById('newPointsInput');
+
+            const price = Math.floor(Number(priceInput.value));
+            const points = Math.floor(Number(pointsInput.value));
+
+            if (price <= 0 || points <= 0) {
+                showToast('가격과 포인트는 1 이상의 숫자여야 합니다.', 'error');
+                return;
+            }
+
+            packages.push({ id: nextId++, price, points, enabled: true, stock: null });
+            priceInput.value = '';
+            pointsInput.value = '';
+
+            renderCatalogTable();
+            runCalculation();
+            showToast(`${price.toLocaleString()}원 / ${points.toLocaleString()}P 상품이 추가되었습니다.`);
+        }
+
+        function resetCatalogToDefault() {
+            packages = JSON.parse(JSON.stringify(DEFAULT_PACKAGES));
+            nextId = 37;
+            renderCatalogTable();
+            runCalculation();
+            showToast('기본 36종 상품 단가표 및 무제한 재고로 복원되었습니다.');
+        }
+
+        /**
+         * 5. 편의 기능
+         */
+        function addCurrentPoints(amount) {
+            const currentInput = document.getElementById('currentPointsInput');
+            const currentVal = Math.max(0, Math.floor(Number(currentInput.value) || 0));
+            currentInput.value = currentVal + amount;
+            handleCurrentPointsChange();
+        }
+
+        function clearCurrentPoints() {
+            document.getElementById('currentPointsInput').value = 0;
+            const currentSelect = document.getElementById('currentLevelQuickSelect');
+            if (currentSelect) currentSelect.value = '0';
+            handleCurrentPointsChange();
+        }
+
+        function addDirectPoints(amount) {
+            const directInput = document.getElementById('directNeededInput');
+            const currentVal = Math.max(0, Math.floor(Number(directInput.value) || 0));
+            directInput.value = currentVal + amount;
+            runCalculation();
+        }
+
+        function clearDirectPoints() {
+            document.getElementById('directNeededInput').value = 0;
+            runCalculation();
+        }
+
+        function scrollToSection(sectionId) {
+            const el = document.getElementById(sectionId);
+            if (!el) return;
+            if (sectionId === 'catalogSection') {
+                const body = document.getElementById('catalogAccordionBody');
+                if (body && body.classList.contains('hidden')) {
+                    toggleCatalogAccordion();
+                }
+            }
+            const yOffset = -76;
+            const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+
+        function resetInputs() {
+            document.getElementById('currentPointsInput').value = 0;
+            document.getElementById('directNeededInput').value = 500;
+            handleCurrentPointsChange();
+            showToast('입력값이 초기화되었습니다.');
+        }
+
+        function toggleLevelTableAccordion() {
+            const body = document.getElementById('levelAccordionBody');
+            const chevron = document.getElementById('levelAccordionChevron');
+            const statusText = document.getElementById('levelAccordionStatusText');
+
+            const isHidden = body.classList.contains('hidden');
+            if (isHidden) {
+                body.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                statusText.textContent = '접기';
+            } else {
+                body.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+                statusText.textContent = '펼쳐보기';
+            }
+        }
+
+        function toggleCatalogAccordion() {
+            const body = document.getElementById('catalogAccordionBody');
+            const chevron = document.getElementById('accordionChevron');
+            const statusText = document.getElementById('accordionStatusText');
+
+            const isHidden = body.classList.contains('hidden');
+            if (isHidden) {
+                body.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                statusText.textContent = '접기';
+            } else {
+                body.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+                statusText.textContent = '펼쳐보기';
+            }
+        }
+
+        function copyResultToClipboard() {
+            if (!lastCalculatedResult) return;
+
+            let lines = [`[빛과밤의사랑 누적 충전 계산기 - 최적 결제 조합]`];
+
+            if (inputMode === 'level') {
+                const target = Number(document.getElementById('targetPointsInput').value) || 0;
+                const current = Number(document.getElementById('currentPointsInput').value) || 0;
+                const needed = Math.max(0, target - current);
+                const currentLv = getAchievedLevel(current);
+                const targetLv = Number(document.getElementById('targetLevelSelect').value);
+
+                lines.push(`• 목표 설정: LV ${targetLv} (${target.toLocaleString()}P)`);
+                lines.push(`• 현재 보유: LV ${currentLv} (${current.toLocaleString()}P) / 추가 필요: ${needed.toLocaleString()}P`);
+            } else {
+                const needed = Number(document.getElementById('directNeededInput').value) || 0;
+                lines.push(`• 필요 충전 포인트: ${needed.toLocaleString()}P`);
+            }
+
+            lines.push(`• 최소 결제 금액: ${lastCalculatedResult.totalCost.toLocaleString()}원`);
+            lines.push(`• 획득 포인트: ${lastCalculatedResult.totalPoints.toLocaleString()}P (초과: +${lastCalculatedResult.excessPoints.toLocaleString()}P)`);
+            lines.push(`• 결제 내역 (총 ${lastCalculatedResult.totalCount}회):`);
+
+            if (lastCalculatedResult.items.length === 0) {
+                lines.push(`  - 추가 결제 불필요`);
+            } else {
+                for (const { pkg, count } of lastCalculatedResult.items) {
+                    lines.push(`  - ${pkg.price.toLocaleString()}원 (${pkg.points.toLocaleString()}P) × ${count}회 = ${(pkg.price * count).toLocaleString()}원`);
+                }
+            }
+
+            const textToCopy = lines.join('\n');
+
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('최적 결제 조합이 클립보드에 복사되었습니다!');
+            } catch (err) {
+                showToast('복사에 실패했습니다.', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bgClass = type === 'error' ? 'bg-rose-600' : 'bg-slate-900';
+
+            toast.className = `${bgClass} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'error' ? 'alert-circle' : 'check-circle'}" class="w-4 h-4 ${type === 'error' ? 'text-rose-200' : 'text-emerald-400'}"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            if (window.lucide) lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 2600);
+        }
+
+        // 전역 window 바인딩
+        window.switchInputMode = switchInputMode;
+        window.handleCurrentLevelQuickSelect = handleCurrentLevelQuickSelect;
+        window.handleLevelSelectChange = handleLevelSelectChange;
+        window.selectQuickLevel = selectQuickLevel;
+        window.addCurrentPoints = addCurrentPoints;
+        window.clearCurrentPoints = clearCurrentPoints;
+        window.addDirectPoints = addDirectPoints;
+        window.clearDirectPoints = clearDirectPoints;
+        window.scrollToSection = scrollToSection;
+        window.resetInputs = resetInputs;
+        window.toggleLevelTableAccordion = toggleLevelTableAccordion;
+        window.toggleCatalogAccordion = toggleCatalogAccordion;
+        window.copyResultToClipboard = copyResultToClipboard;
+        window.togglePackageEnabled = togglePackageEnabled;
+        window.updatePackageStock = updatePackageStock;
+        window.handleAddPackage = handleAddPackage;
+        window.resetCatalogToDefault = resetCatalogToDefault;
+        window.handleTargetSelectMouseEnter = handleTargetSelectMouseEnter;
+        window.handleLevelRowMouseEnter = handleLevelRowMouseEnter;
+        window.handleLevelRowMouseMove = handleLevelRowMouseMove;
+        window.hideRewardPopup = hideRewardPopup;
+
+        // 초기 실행
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            initLevelDropdown();
+
+            const currentInput = document.getElementById('currentPointsInput');
+            if (currentInput) currentInput.addEventListener('input', handleCurrentPointsChange);
+
+            const directInput = document.getElementById('directNeededInput');
+            if (directInput) directInput.addEventListener('input', runCalculation);
+
+            renderCatalogTable();
+            handleCurrentPointsChange();
+        });
+    </script>
+</body>
+</html>
