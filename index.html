@@ -80,14 +80,20 @@
         </div>
     </header>
 
-    <!-- 플로팅 레벨 보상 팝업 (마우스 오버 툴팁) -->
-    <div id="rewardFloatingPopup" class="fixed z-50 hidden pointer-events-none max-w-xs sm:max-w-sm bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-3.5 shadow-2xl border border-slate-700/80 transition-opacity duration-150">
-        <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/80">
+    <!-- 플로팅 레벨 보상 팝업 (마우스 오버 및 모바일 선물상자 버튼 클릭 지원) -->
+    <div id="rewardFloatingPopup" class="fixed z-50 hidden max-w-xs sm:max-w-sm bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-slate-700/80 transition-opacity duration-150">
+        <div class="flex items-center justify-between gap-3 pb-2 mb-2 border-b border-slate-700/80">
             <span id="rewardPopupTitle" class="text-xs font-extrabold text-amber-300 flex items-center gap-1.5">
                 <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-400"></i>
                 LV 1 달성 보상
             </span>
-            <span id="rewardPopupPoints" class="text-[11px] font-mono font-semibold text-slate-300">100 P</span>
+            <div class="flex items-center gap-2">
+                <span id="rewardPopupPoints" class="text-[11px] font-mono font-semibold text-slate-300">100 P</span>
+                <button type="button" id="rewardPopupCloseBtn" onclick="hideRewardPopup()" aria-label="보상 팝업 닫기"
+                    class="hidden p-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
         </div>
         <div id="rewardPopupBody" class="space-y-1 text-xs leading-relaxed text-slate-100"></div>
     </div>
@@ -175,19 +181,26 @@
                             </span>
                         </div>
 
-                        <div id="targetLevelHoverWrap" class="relative"
-                            onmouseenter="handleTargetSelectMouseEnter(event)"
-                            onmousemove="handleLevelRowMouseMove(event)"
-                            onmouseleave="hideRewardPopup()">
-                            <select id="targetLevelSelect" onchange="handleLevelSelectChange()"
-                                class="w-full pl-4 pr-10 py-3.5 text-base font-extrabold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer tabular-nums">
-                                <!-- JS로 LV 1 ~ LV 28 옵션 동적 생성 -->
-                            </select>
-                            <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <div class="flex items-stretch gap-2">
+                            <div id="targetLevelHoverWrap" class="relative flex-1"
+                                onmouseenter="handleTargetSelectMouseEnter(event)"
+                                onmousemove="handleLevelRowMouseMove(event)"
+                                onmouseleave="handleHoverLeave()">
+                                <select id="targetLevelSelect" onchange="handleLevelSelectChange()"
+                                    class="w-full pl-4 pr-10 py-3.5 text-base font-extrabold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer tabular-nums">
+                                    <!-- JS로 LV 1 ~ LV 28 옵션 동적 생성 -->
+                                </select>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            </div>
+                            <button type="button" onclick="toggleTargetRewardPopup(event)" title="선택된 레벨 보상 보기"
+                                class="px-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 active:scale-95 text-amber-600 border border-amber-200/80 flex flex-col items-center justify-center gap-0.5 transition-all shrink-0">
+                                <i data-lucide="gift" class="w-4 h-4"></i>
+                                <span class="text-[10px] font-extrabold leading-none">보상</span>
+                            </button>
                         </div>
                         <p class="text-[11px] text-slate-400 flex items-center gap-1">
                             <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-500"></i>
-                            선택창에 마우스를 올리면 해당 레벨 보상을 확인할 수 있습니다.
+                            선물상자 버튼을 누르거나 마우스를 올리면 보상을 확인할 수 있습니다.
                         </p>
                         <input type="hidden" id="targetPointsInput" value="100">
                     </div>
@@ -331,7 +344,7 @@
                     <div class="px-5 sm:px-6 py-2.5 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
                         <span class="flex items-center gap-1.5">
                             <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-500"></i>
-                            레벨 마우스 오버 시 보상 팝업 표시 · 클릭 시 목표 설정
+                            선물상자 클릭 또는 마우스 오버 시 보상 팝업 표시 · 행 클릭 시 목표 설정
                         </span>
                         <span id="levelTableBasisNote" class="font-semibold text-indigo-600">현재 보유 포인트(0 P) 기준 계산됨</span>
                     </div>
@@ -531,6 +544,8 @@
         let nextId = 37;
         let lastCalculatedResult = null;
         let inputMode = 'level'; // 'level' | 'direct'
+        let isRewardPopupPinned = false;
+        let pinnedRewardLevel = null;
 
         /**
          * 누적 포인트에 해당하는 현재 달성 레벨 계산 (0 ~ 28)
@@ -625,34 +640,50 @@
 
             const pad = 14;
             const rect = popup.getBoundingClientRect();
+            const popupW = rect.width || 280;
+            const popupH = rect.height || 140;
             let left = clientX + pad;
             let top = clientY + pad;
 
-            if (left + rect.width > window.innerWidth - 12) {
-                left = Math.max(12, clientX - rect.width - pad);
+            if (left + popupW > window.innerWidth - 12) {
+                left = Math.max(12, clientX - popupW - pad);
             }
-            if (top + rect.height > window.innerHeight - 12) {
-                top = Math.max(12, clientY - rect.height - pad);
+            if (top + popupH > window.innerHeight - 12) {
+                top = Math.max(12, clientY - popupH - pad);
             }
 
             popup.style.left = `${left}px`;
             popup.style.top = `${top}px`;
         }
 
-        function showRewardPopup(level, clientX, clientY) {
+        function showRewardPopup(level, clientX, clientY, pinned = false) {
             const popup = document.getElementById('rewardFloatingPopup');
             const titleEl = document.getElementById('rewardPopupTitle');
             const pointsEl = document.getElementById('rewardPopupPoints');
             const bodyEl = document.getElementById('rewardPopupBody');
+            const closeBtn = document.getElementById('rewardPopupCloseBtn');
             if (!popup || !titleEl || !pointsEl || !bodyEl) return;
 
             const levelObj = LEVEL_TABLE.find(l => l.level === Number(level));
             if (!levelObj) return;
 
+            isRewardPopupPinned = pinned;
+            pinnedRewardLevel = pinned ? Number(level) : null;
+
+            if (pinned) {
+                popup.classList.remove('pointer-events-none');
+                if (closeBtn) closeBtn.classList.remove('hidden');
+            } else {
+                popup.classList.add('pointer-events-none');
+                if (closeBtn) closeBtn.classList.add('hidden');
+            }
+
             titleEl.innerHTML = `<i data-lucide="gift" class="w-3.5 h-3.5 text-amber-400"></i> LV ${levelObj.level} 달성 보상`;
             pointsEl.textContent = `${levelObj.points.toLocaleString()} P`;
             bodyEl.innerHTML = formatRewardHtml(levelObj.reward);
 
+            popup.style.left = '12px';
+            popup.style.top = '12px';
             popup.classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
             positionRewardPopup(clientX, clientY);
@@ -660,22 +691,53 @@
 
         function hideRewardPopup() {
             const popup = document.getElementById('rewardFloatingPopup');
+            isRewardPopupPinned = false;
+            pinnedRewardLevel = null;
             if (popup) {
                 popup.classList.add('hidden');
+                popup.classList.add('pointer-events-none');
             }
         }
 
-        function handleTargetSelectMouseEnter(e) {
+        function handleHoverLeave() {
+            if (!isRewardPopupPinned) {
+                hideRewardPopup();
+            }
+        }
+
+        function toggleRewardPopupByClick(e, level) {
+            if (e) e.stopPropagation();
+            const popup = document.getElementById('rewardFloatingPopup');
+            if (isRewardPopupPinned && pinnedRewardLevel === Number(level) && popup && !popup.classList.contains('hidden')) {
+                hideRewardPopup();
+                return;
+            }
+            const rect = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : { left: 20, bottom: 120 };
+            const x = rect.left;
+            const y = rect.bottom + 6;
+            showRewardPopup(level, x, y, true);
+        }
+
+        function toggleTargetRewardPopup(e) {
             const select = document.getElementById('targetLevelSelect');
             if (!select) return;
-            showRewardPopup(Number(select.value), e.clientX, e.clientY);
+            toggleRewardPopupByClick(e, Number(select.value));
+        }
+
+        function handleTargetSelectMouseEnter(e) {
+            if (isRewardPopupPinned) return;
+            const select = document.getElementById('targetLevelSelect');
+            if (!select) return;
+            showRewardPopup(Number(select.value), e.clientX, e.clientY, false);
         }
 
         function handleLevelRowMouseEnter(e, level) {
-            showRewardPopup(level, e.clientX, e.clientY);
+            if (isRewardPopupPinned) return;
+            showRewardPopup(level, e.clientX, e.clientY, false);
         }
 
         function handleLevelRowMouseMove(e) {
+            if (isRewardPopupPinned) return;
             positionRewardPopup(e.clientX, e.clientY);
         }
 
@@ -1141,13 +1203,16 @@
                     <tr onclick="selectQuickLevel(${row.level}, true)"
                         onmouseenter="handleLevelRowMouseEnter(event, ${row.level})"
                         onmousemove="handleLevelRowMouseMove(event)"
-                        onmouseleave="hideRewardPopup()"
+                        onmouseleave="handleHoverLeave()"
                         class="group cursor-pointer transition-colors ${rowBgClass}">
                         <td class="py-3 px-5 sm:px-6 font-extrabold text-slate-900">
                             <span class="inline-flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full ${row.level >= 20 ? 'bg-amber-500' : (row.level >= 10 ? 'bg-indigo-500' : 'bg-slate-400')}"></span>
                                 LV ${row.level}
-                                <i data-lucide="gift" class="w-3.5 h-3.5 text-amber-500 opacity-75 group-hover:opacity-100"></i>
+                                <button type="button" onclick="toggleRewardPopupByClick(event, ${row.level})" title="LV ${row.level} 보상 보기"
+                                    class="ml-0.5 p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 active:scale-95 text-amber-600 border border-amber-200/70 transition-all">
+                                    <i data-lucide="gift" class="w-3.5 h-3.5"></i>
+                                </button>
                             </span>
                         </td>
                         <td class="py-3 px-4 font-mono font-semibold text-slate-700">${row.points.toLocaleString()} P</td>
@@ -1551,7 +1616,19 @@
         window.handleTargetSelectMouseEnter = handleTargetSelectMouseEnter;
         window.handleLevelRowMouseEnter = handleLevelRowMouseEnter;
         window.handleLevelRowMouseMove = handleLevelRowMouseMove;
+        window.handleHoverLeave = handleHoverLeave;
+        window.toggleRewardPopupByClick = toggleRewardPopupByClick;
+        window.toggleTargetRewardPopup = toggleTargetRewardPopup;
         window.hideRewardPopup = hideRewardPopup;
+
+        // 팝업 바깥 영역 터치/클릭 시 고정된 보상 팝업 닫기
+        document.addEventListener('click', (e) => {
+            if (!isRewardPopupPinned) return;
+            const popup = document.getElementById('rewardFloatingPopup');
+            if (popup && !popup.contains(e.target)) {
+                hideRewardPopup();
+            }
+        });
 
         // 초기 실행
         window.addEventListener('DOMContentLoaded', () => {
